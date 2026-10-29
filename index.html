@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafío Verde: Empareja y Salva el Planeta</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #0f392b 0%, #1a5336 50%, #0d2818 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .card-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .card-item:hover:not(.matched):not(.disabled) {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3);
+        }
+
+        .card-selected {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3) !important;
+            transform: scale(1.03) !important;
+        }
+
+        .card-matched {
+            border-color: #059669 !important;
+            background-color: #d1fae5 !important;
+            opacity: 0.7;
+            cursor: default;
+        }
+
+        .card-error {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        .eco-gradient-text {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 text-slate-800 flex flex-col items-center justify-center min-h-screen">
+
+    <!-- Header & Dashboard -->
+    <header class="w-full max-w-5xl mb-6 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-semibold mb-3 border border-emerald-500/30">
+            <i class="fa-solid fa-leaf"></i> Desafío de Aprendizaje Ecológico
+        </div>
+        <h1 class="text-3xl md:text-5xl font-extrabold text-white tracking-tight mb-2">
+            ¿Cómo Cuidar el <span class="text-emerald-400">Medio Ambiente</span>?
+        </h1>
+        <p class="text-emerald-100/80 text-sm md:text-base max-w-xl mx-auto">
+            Empareja cada acción ecológica con su beneficio correspondiente haciendo clic en un concepto de cada columna.
+        </p>
+
+        <!-- Stats Bar -->
+        <div class="grid grid-cols-3 gap-3 md:gap-6 max-w-2xl mx-auto mt-6">
+            <div class="glass-card rounded-2xl p-3 md:p-4 text-center">
+                <div class="text-xs uppercase font-bold text-slate-500 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-clock text-emerald-600"></i> Tiempo
+                </div>
+                <div id="timer-display" class="text-xl md:text-3xl font-extrabold text-slate-800 mt-1">00:00</div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 md:p-4 text-center">
+                <div class="text-xs uppercase font-bold text-slate-500 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Aciertos
+                </div>
+                <div id="score-display" class="text-xl md:text-3xl font-extrabold text-emerald-600 mt-1">0 / 6</div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 md:p-4 text-center">
+                <div class="text-xs uppercase font-bold text-slate-500 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-star text-amber-500"></i> Puntos
+                </div>
+                <div id="points-display" class="text-xl md:text-3xl font-extrabold text-slate-800 mt-1">0</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full max-w-2xl mx-auto bg-emerald-950/50 rounded-full h-3 mt-4 overflow-hidden border border-emerald-500/30 p-0.5">
+            <div id="progress-bar" class="bg-gradient-to-r from-emerald-400 to-green-500 h-full rounded-full w-0 transition-all duration-500"></div>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+        
+        <!-- Acciones Columna -->
+        <div class="flex flex-col gap-3">
+            <h2 class="text-lg font-bold text-emerald-200 flex items-center gap-2 px-2">
+                <i class="fa-solid fa-hands-holding-circle"></i> Acciones Ecológicas
+            </h2>
+            <div id="actions-column" class="flex flex-col gap-3">
+                <!-- Se genera dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Beneficios Columna -->
+        <div class="flex flex-col gap-3">
+            <h2 class="text-lg font-bold text-emerald-200 flex items-center gap-2 px-2">
+                <i class="fa-solid fa-seedling"></i> Beneficios e Impacto
+            </h2>
+            <div id="benefits-column" class="flex flex-col gap-3">
+                <!-- Se genera dinámicamente -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal de Felicitaciones -->
+    <div id="victory-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-all duration-500">
+        <div class="glass-card rounded-3xl p-6 md:p-8 max-w-md w-full text-center shadow-2xl border-2 border-emerald-400/50 transform scale-90 transition-all duration-500" id="modal-content">
+            
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner animate-bounce">
+                <i class="fa-solid fa-earth-americas"></i>
+            </div>
+
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-800 mb-1">
+                ¡Fantástico Trabajo! 🎉
+            </h3>
+            <p class="text-emerald-700 font-semibold mb-4">¡Eres un verdadero Guardián del Planeta!</p>
+
+            <div class="bg-slate-50/80 rounded-2xl p-4 mb-6 border border-slate-200 text-left space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600 text-sm"><i class="fa-solid fa-clock text-emerald-600 mr-2"></i>Tiempo total:</span>
+                    <span id="final-time" class="font-bold text-slate-800">00:00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-600 text-sm"><i class="fa-solid fa-bullseye text-emerald-600 mr-2"></i>Intentos fallidos:</span>
+                    <span id="final-errors" class="font-bold text-slate-800">0</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-slate-200 pt-2 mt-2">
+                    <span class="text-slate-800 font-bold"><i class="fa-solid fa-trophy text-amber-500 mr-2"></i>Puntuación Final:</span>
+                    <span id="final-points" class="font-extrabold text-emerald-600 text-lg">100 pts</span>
+                </div>
+            </div>
+
+            <button onclick="resetGame()" class="w-full btn-gradient text-white font-bold py-3.5 px-6 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> Jugar de Nuevo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Datos del cuestionario ecológico
+        const pairsData = [
+            {
+                id: 1,
+                action: "Plantar árboles nativos",
+                iconAction: "fa-tree",
+                benefit: "Produce oxígeno, purifica el aire y previene la erosión del suelo.",
+                iconBenefit: "fa-wind"
+            },
+            {
+                id: 2,
+                action: "Cerrar el grifo al cepillarse",
+                iconAction: "fa-faucet-drip",
+                benefit: "Ahorra hasta 12 litros de agua limpia por minuto.",
+                iconBenefit: "fa-droplet"
+            },
+            {
+                id: 3,
+                action: "Separar residuos orgánicos e inorgánicos",
+                iconAction: "fa-recycle",
+                benefit: "Facilita el reciclaje y reduce la acumulación en vertederos.",
+                iconBenefit: "fa-dumpster"
+            },
+            {
+                id: 4,
+                action: "Usar bombillas LED de bajo consumo",
+                iconAction: "fa-lightbulb",
+                benefit: "Reduce el consumo eléctrico y las emisiones de CO2.",
+                iconBenefit: "fa-bolt"
+            },
+            {
+                id: 5,
+                action: "Utilizar transporte público o bicicleta",
+                iconAction: "fa-bicycle",
+                benefit: "Disminuye la contaminación atmosférica y el tráfico urbano.",
+                iconBenefit: "fa-smog"
+            },
+            {
+                id: 6,
+                action: "Llevar bolsas de tela al supermercado",
+                iconAction: "fa-bag-shopping",
+                benefit: "Evita que miles de plásticos de un solo uso lleguen al océano.",
+                iconBenefit: "fa-fish"
+            }
+        ];
+
+        // Estado del Juego
+        let selectedAction = null;
+        let selectedBenefit = null;
+        let matchedPairs = 0;
+        let score = 0;
+        let errors = 0;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let gameStarted = false;
+
+        // Efectos de sonido sintéticos usando Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'select') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            }
+        }
+
+        // Inicializar Juego
+        function initGame() {
+            selectedAction = null;
+            selectedBenefit = null;
+            matchedPairs = 0;
+            score = 0;
+            errors = 0;
+            timerSeconds = 0;
+            gameStarted = false;
+
+            clearInterval(timerInterval);
+            document.getElementById('timer-display').innerText = "00:00";
+            document.getElementById('score-display').innerText = `0 / ${pairsData.length}`;
+            document.getElementById('points-display').innerText = "0";
+            document.getElementById('progress-bar').style.width = "0%";
+
+            // Ocultar modal
+            const modal = document.getElementById('victory-modal');
+            const modalContent = document.getElementById('modal-content');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-90');
+
+            // Mezclar elementos
+            const shuffledActions = [...pairsData].sort(() => Math.random() - 0.5);
+            const shuffledBenefits = [...pairsData].sort(() => Math.random() - 0.5);
+
+            // Renderizar Acciones
+            const actionsContainer = document.getElementById('actions-column');
+            actionsContainer.innerHTML = '';
+            shuffledActions.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'glass-card card-item rounded-2xl p-4 cursor-pointer flex items-center gap-3 border-2 border-transparent';
+                card.dataset.id = item.id;
+                card.dataset.type = 'action';
+                card.onclick = () => handleSelect(card, 'action');
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid ${item.iconAction}"></i>
+                    </div>
+                    <span class="font-semibold text-slate-700 text-sm md:text-base">${item.action}</span>
+                `;
+                actionsContainer.appendChild(card);
+            });
+
+            // Renderizar Beneficios
+            const benefitsContainer = document.getElementById('benefits-column');
+            benefitsContainer.innerHTML = '';
+            shuffledBenefits.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'glass-card card-item rounded-2xl p-4 cursor-pointer flex items-center gap-3 border-2 border-transparent';
+                card.dataset.id = item.id;
+                card.dataset.type = 'benefit';
+                card.onclick = () => handleSelect(card, 'benefit');
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid ${item.iconBenefit}"></i>
+                    </div>
+                    <span class="font-semibold text-slate-700 text-sm md:text-base">${item.benefit}</span>
+                `;
+                benefitsContainer.appendChild(card);
+            });
+        }
+
+        // Iniciar Temporizador
+        function startTimer() {
+            if (gameStarted) return;
+            gameStarted = true;
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+                const secs = (timerSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer-display').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        // Manejar Selección de Tarjetas
+        function handleSelect(card, type) {
+            startTimer();
+
+            // Evitar interacción si ya está emparejada
+            if (card.classList.contains('card-matched')) return;
+
+            playSound('select');
+
+            if (type === 'action') {
+                if (selectedAction) selectedAction.classList.remove('card-selected');
+                selectedAction = card;
+                selectedAction.classList.add('card-selected');
+            } else {
+                if (selectedBenefit) selectedBenefit.classList.remove('card-selected');
+                selectedBenefit = card;
+                selectedBenefit.classList.add('card-selected');
+            }
+
+            // Comprobar si ambas están seleccionadas
+            if (selectedAction && selectedBenefit) {
+                checkMatch();
+            }
+        }
+
+        // Validar si la pareja es correcta
+        function checkMatch() {
+            const idAction = selectedAction.dataset.id;
+            const idBenefit = selectedBenefit.dataset.id;
+
+            if (idAction === idBenefit) {
+                // Éxito
+                playSound('success');
+                selectedAction.classList.remove('card-selected');
+                selectedBenefit.classList.remove('card-selected');
+                
+                selectedAction.classList.add('card-matched');
+                selectedBenefit.classList.add('card-matched');
+
+                // Agregar icono de check
+                appendCheckIcon(selectedAction);
+                appendCheckIcon(selectedBenefit);
+
+                selectedAction = null;
+                selectedBenefit = null;
+
+                matchedPairs++;
+                score += 100;
+                
+                updateStats();
+
+                if (matchedPairs === pairsData.length) {
+                    endGame();
+                }
+
+            } else {
+                // Error
+                playSound('error');
+                errors++;
+                const tempAction = selectedAction;
+                const tempBenefit = selectedBenefit;
+
+                tempAction.classList.add('card-error');
+                tempBenefit.classList.add('card-error');
+
+                selectedAction = null;
+                selectedBenefit = null;
+
+                setTimeout(() => {
+                    tempAction.classList.remove('card-selected', 'card-error');
+                    tempBenefit.classList.remove('card-selected', 'card-error');
+                }, 600);
+            }
+        }
+
+        function appendCheckIcon(card) {
+            const check = document.createElement('i');
+            check.className = 'fa-solid fa-circle-check text-emerald-600 ml-auto text-xl';
+            card.appendChild(check);
+        }
+
+        function updateStats() {
+            document.getElementById('score-display').innerText = `${matchedPairs} / ${pairsData.length}`;
+            document.getElementById('points-display').innerText = score;
+            const percentage = (matchedPairs / pairsData.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+        }
+
+        // Finalizar Juego
+        function endGame() {
+            clearInterval(timerInterval);
+            
+            // Puntuación final calculada
+            const finalScore = Math.max(0, score - (errors * 15));
+            
+            document.getElementById('final-time').innerText = document.getElementById('timer-display').innerText;
+            document.getElementById('final-errors').innerText = errors;
+            document.getElementById('final-points').innerText = `${finalScore} pts`;
+
+            setTimeout(() => {
+                // Lanzar confeti
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 120,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
+
+                // Mostrar Modal
+                const modal = document.getElementById('victory-modal');
+                const modalContent = document.getElementById('modal-content');
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modalContent.classList.remove('scale-90');
+                modalContent.classList.add('scale-100');
+            }, 500);
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        // Inicialización en carga de ventana
+        window.onload = initGame;
+    </script>
+</body>
+</html>
